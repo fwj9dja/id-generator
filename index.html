@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>批量身份证生成器（测试用途）</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
+        .input-group { margin: 10px 0; }
+        label { display: inline-block; width: 120px; }
+        input, select { padding: 5px; width: 200px; }
+        button { background: #4CAF50; color: white; padding: 10px; border: none; cursor: pointer; }
+        #result { margin-top: 20px; max-height: 400px; overflow-y: auto; }
+        .warning { color: red; font-size: 0.9em; }
+        .id-list { font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h2>批量身份证生成器</h2>
+    <div class="input-group">
+        <label>地址码（前6位，可网上查询）:</label>
+        <input type="text" id="addressCode" placeholder="例：350503" maxlength="6">
+    </div>
+    <div class="input-group">
+        <label>出生日期:</label>
+        <input type="date" id="birthDate">
+    </div>
+    <div class="input-group">
+        <label>性别:</label>
+        <select id="gender">
+            <option value="male">男（奇数末位）</option>
+            <option value="female">女（偶数末位）</option>
+        </select>
+    </div>
+    <div class="input-group">
+        <label>生成数量（≤500）:</label>
+        <input type="number" id="count" min="1" max="500" value="500">
+    </div>
+    <button onclick="generateBatchIDs()">批量生成</button>
+    <div id="result"></div>
+
+    <script>
+        function generateBatchIDs() {
+            // 获取输入参数
+            const addressCode = document.getElementById('addressCode').value;
+            const birthDate = document.getElementById('birthDate').value;
+            const gender = document.getElementById('gender').value;
+            const count = parseInt(document.getElementById('count').value);
+
+            // 输入校验
+            if (!/^\d{6}$/.test(addressCode)) {
+                alert("地址码必须为6位数字！");
+                return;
+            }
+            if (!birthDate) {
+                alert("请选择出生日期！");
+                return;
+            }
+            if (count < 1 || count > 500) {
+                alert("生成数量需在1-500之间！");
+                return;
+            }
+
+            // 格式化出生日期码
+            const date = new Date(birthDate);
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const birthCode = `${year}${month}${day}`;
+
+            // 计算最大可能生成数量（性别限制）
+            const maxCount = 500; // 顺序码末位奇偶各500种可能
+            if (count > maxCount) {
+                alert(`当前性别最多生成${maxCount}条不重复号码！`);
+                return;
+            }
+
+            // 生成不重复的身份证号
+            const weights = [7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2];
+            const checkMap = "10X98765432";
+            const idSet = new Set();
+            let currentSequence = gender === 'male' ? 1 : 0; // 男性从001开始，女性从000开始
+
+            while (idSet.size < count) {
+                // 构建顺序码（末位符合性别要求）
+                const sequenceCode = currentSequence.toString().padStart(3, '0');
+                currentSequence += 2; // 步长为2确保奇偶性不变
+
+                // 拼接前17位并计算校验码
+                const id17 = addressCode + birthCode + sequenceCode;
+                let total = 0;
+                for (let i = 0; i < 17; i++) {
+                    total += parseInt(id17.charAt(i)) * weights[i];
+                }
+                const checkCode = checkMap.charAt(total % 11);
+                const fullID = id17 + checkCode;
+
+                idSet.add(fullID);
+            }
+
+            // 显示结果
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="id-list">${Array.from(idSet).join('<br>')}</div>`;
+        }
+    </script>
+</body>
+</html>
